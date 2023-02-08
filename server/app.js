@@ -16,6 +16,7 @@ app.use(express.json());
 app.get('/unmanaged', async (req, res, next) => {
     // Unmanaged transactions are first saved to a variable
     // Your code here
+    const t = await sequelize.transaction();
     try {
         // Queries to be performed in the transaction:
         
@@ -28,6 +29,8 @@ app.get('/unmanaged', async (req, res, next) => {
         });
         await rose.update({
             balance: rose.balance + 200
+        }, {
+            transaction: t
         });
         await rose.save();
 
@@ -44,6 +47,7 @@ app.get('/unmanaged', async (req, res, next) => {
             transaction: t
         });
         await martha.save();
+        await t.commit()
         
 
         // After the transaction, formulate the response
@@ -53,7 +57,7 @@ app.get('/unmanaged', async (req, res, next) => {
     } catch (error) {
         // If an error occurred, the transaction must be rolled back
         // Your code here
-
+        await t.rollback();
         // The error is then passed to the error handler
         next(error);
     }
@@ -65,12 +69,7 @@ app.get('/unmanaged', async (req, res, next) => {
 
 app.get('/managed', async (req, res, next) => {
     try {
-        // Create a transaction with a callback function
-        // If the function executes successfully, the transaction is committed
-        
-        // Your code here
-        
-        // Queries to be performed in the transaction:
+        const result = await sequelize.transaction(async (t) => {
 
         // Find Rose's account, add 200 to her balance, then save
         let rose = await Account.findOne({
@@ -81,6 +80,8 @@ app.get('/managed', async (req, res, next) => {
         });
         await rose.update({
             balance: rose.balance + 200
+        },{
+            transaction: t
         });
         await rose.save();
 
@@ -93,13 +94,28 @@ app.get('/managed', async (req, res, next) => {
         });
         await amy.update({
             balance: amy.balance - 200
+        },{
+            transaction: t
         });
+        
         await amy.save();
 
         // After the transaction, formulate the response
         // Find all accounts, ordered by firstName, returned as a JSON response
         let allAccounts = await Account.findAll({ order: [ ['firstName', 'ASC'] ] });
         res.json(allAccounts);
+
+        })
+        // Create a transaction with a callback function
+        // If the function executes successfully, the transaction is committed
+        
+        // Your code here
+        
+        // Queries to be performed in the transaction:
+
+
+
+
     } catch (error) {
         // If an error was thrown in the transaction, it will be rolled back
         // automatically
@@ -137,5 +153,5 @@ app.use((err, req, res, next) => {
 });
 
 // Set port and listen for incoming requests - DO NOT MODIFY
-const port = 5000;
+const port = 5005;
 app.listen(port, () => console.log('Server is listening on port', port));
